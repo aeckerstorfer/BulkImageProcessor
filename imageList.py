@@ -1,4 +1,4 @@
-from PIL import Image, ImageFilter, ImageEnhance
+from PIL import Image, ImageFilter, ImageEnhance, ImageDraw, ImageFont
 import os
 
 
@@ -145,3 +145,39 @@ class ImageList:
             self.__apply_lambda(
                 lambda image: ImageEnhance.Sharpness(image).enhance(sharpness))
         return self
+
+    def watermark(self, text, opacity=0.5, font_size=20, font_path=None):
+
+        font_path = "arial.ttf" if font_path is None else font_path
+        font = ImageFont.truetype(font_path, font_size)
+        text_color = (
+            255, 255, 255, int(255*opacity))
+
+        for i, named_image in enumerate(self.__images):
+            image = named_image.image
+            imageMode = image.mode
+            image = image.convert('RGBA')
+
+            txtLayer = Image.new('RGBA', image.size, (255, 255, 255, 0))
+            drawObject = ImageDraw.Draw(txtLayer)
+
+            x, y = self.__determine_watermark_position(
+                image, drawObject, text, font)
+
+            drawObject.text((x, y), text, fill=text_color, font=font)
+
+            image = Image.alpha_composite(image, txtLayer)
+            image = image.convert(imageMode)
+
+            named_image.image = image
+
+            self.__images[i] = named_image
+        return self
+
+    def __determine_watermark_position(self, image, drawObject, text, font):
+        width, height = image.size
+        text_width, text_height = drawObject.textsize(text, font)
+        x = width / 2 - text_width / 2
+        y = height / 2 - text_height / 2
+
+        return x, y
